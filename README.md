@@ -1,5 +1,7 @@
+Time to learn Gods language (no not holy C)
+
 ### Bootstrap
 
 ```
-gcc -o hermes blibc.c && ./hermes
+TBD
 ```

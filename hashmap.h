@@ -83,23 +83,25 @@ static inline unsigned char *hashmap_val_at(const hashmap *hm, size_t idx) {
 
 /*
     Initialize a hashmap.
-    capacity is rounded up to a power of two (minimum 8).
-    hash and eq must be non-NULL.
-    Returns 0 on success, -1 on invalid input or allocation failure.
+    
+    capacity is rounded up to a power of two (minimum 8). Hash and eq must be non-NULL.
+    
+    TON of preflight and sanity checks
 */
 static inline int hashmap_init(
-    hashmap *hm,
-    size_t key_size,
-    size_t val_size,
-    size_t capacity,
-    size_t (*hash)(const void *key, void *ctx),
-    int (*eq)(const void *a, const void *b, void *ctx),
-    void *ctx
+    hashmap *hm,        // hashmap address
+    size_t key_size,    // key size
+    size_t val_size,    // val size
+    size_t capacity,    // capacity
+    size_t (*hash)(const void *key, void *ctx),         // hash function pointer
+    int (*eq)(const void *a, const void *b, void *ctx), // eq function pointer
+    void *ctx           // void ctx for sending context to 2 hash and eq at same time
 ) {
     if (hm == NULL) {
         return -1;
     }
-
+    
+    // Effectively zeroed out hashmap
     hm->keys = NULL;
     hm->vals = NULL;
     hm->states = NULL;
@@ -127,40 +129,41 @@ static inline int hashmap_init(
     if (eq == NULL) {
         return -1;
     }
-
+    
+    // Minimum capacity required for hashmap
     size_t cap = capacity;
     if (cap < 8) {
         cap = 8;
     }
-
+    
+    // Rounds to pow of 2 so we can use bitwiwse operations on it for SPEEEEED
     cap = hashmap_next_pow2(cap);
     if (cap == 0) {
         return -1;
     }
 
+    // Calculates key and val size by bytes
     size_t keys_bytes = 0;
     int keys_mul_result = hash_multiply(cap, key_size, &keys_bytes);
     if (keys_mul_result != 0) {
         return -1;
     }
-
     size_t vals_bytes = 0;
     int vals_mul_result = hash_multiply(cap, val_size, &vals_bytes);
     if (vals_mul_result != 0) {
         return -1;
     }
 
+    // More checks
     unsigned char *keys = (unsigned char *)malloc(keys_bytes);
     if (keys == NULL) {
         return -1;
     }
-
     unsigned char *vals = (unsigned char *)malloc(vals_bytes);
     if (vals == NULL) {
         free(keys);
         return -1;
     }
-
     unsigned char *states = (unsigned char *)malloc(cap);
     if (states == NULL) {
         free(vals);
@@ -168,8 +171,8 @@ static inline int hashmap_init(
         return -1;
     }
 
+    // Sets passed in values post sanity checks to the hashmap
     memset(states, HASHMAP_SLOT_EMPTY, cap);
-
     hm->keys = keys;
     hm->vals = vals;
     hm->states = states;
@@ -185,7 +188,7 @@ static inline int hashmap_init(
 }
 
 /*
-    Free all storage owned by the hashmap and reset its fields.
+    Slams the free and zeroes out the memory on a passed in hashmap
 */
 static inline void hashmap_free(hashmap *hm) {
     if (hm == NULL) {
@@ -211,6 +214,8 @@ static inline void hashmap_free(hashmap *hm) {
 
 /*
     Remove all entries but keep allocated storage.
+    Makes it usable for the future but if you look at the memory location
+    in isolation you will see the values located there
 */
 static inline void hashmap_clear(hashmap *hm) {
     if (hm == NULL) {
@@ -227,6 +232,7 @@ static inline void hashmap_clear(hashmap *hm) {
     hm->tombstones = 0;
 }
 
+// minus 1 kek
 static inline size_t hashmap_mask(const hashmap *hm) {
     return hm->cap - 1;
 }
